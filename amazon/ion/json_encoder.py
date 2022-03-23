@@ -39,11 +39,11 @@ class IonToJSONEncoder(JSONExtendedEncoder):
         return isinstance(obj, cls)
 
     def default(self, o):
-        if (isinstance(o, IonPyInt) or isinstance(o, IonPyBool)) and o.ion_type == IonType.BOOL:
-            return True if o == 1 else False
+        if isinstance(o, (IonPyInt, IonPyBool)) and o.ion_type == IonType.BOOL:
+            return o == 1
         elif isinstance(o, IonPyInt) and o.ion_type == IonType.INT:
             return int(o)
-        elif isinstance(o, IonPyList) and (o.ion_type == IonType.LIST or o.ion_type == IonType.SEXP):
+        elif isinstance(o, IonPyList) and o.ion_type in [IonType.LIST, IonType.SEXP]:
             return list(map(self.default, o))
         elif isinstance(o, IonPyDict) and o.ion_type == IonType.STRUCT:
             return {key: self.default(o[key]) for key in o.keys()}
@@ -62,8 +62,6 @@ class IonToJSONEncoder(JSONExtendedEncoder):
         elif isinstance(o, IonPyText) and o.ion_type == IonType.STRING:
             return str(o)
         elif isinstance(o, IonPyFloat) and o.ion_type == IonType.FLOAT:
-            if "inf" in str(o) or "nan" in str(o):
-                return None
-            return float(o)
+            return None if "inf" in str(o) or "nan" in str(o) else float(o)
         else:
             super(IonToJSONEncoder, self).default(o)

@@ -248,14 +248,8 @@ SIMPLE_SCALARS_MAP_TEXT = {
 }
 
 SIMPLE_SCALARS_MAP_BINARY = {
-    _IT.NULL: (
-        (None, b'\x0F'),
-    ),
-    _IT.BOOL: (
-        (None, b'\x1F'),
-        (False, b'\x10'),
-        (True, b'\x11')
-    ),
+    _IT.NULL: ((None, b'\x0F'),),
+    _IT.BOOL: ((None, b'\x1F'), (False, b'\x10'), (True, b'\x11')),
     _IT.INT: (
         (None, b'\x2F'),
         (0, b'\x20'),
@@ -265,10 +259,14 @@ SIMPLE_SCALARS_MAP_BINARY = {
         (-0xFFFFFFFF, b'\x34\xFF\xFF\xFF\xFF'),
         (0xFFFFFFFFFFFFFFFF, b'\x28\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF'),
         (-0xFFFFFFFFFFFFFFFF, b'\x38\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF'),
-        (0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF,
-         b'\x2E\x90\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF'),
-        (-0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF,
-         b'\x3E\x90\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF'),
+        (
+            0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF,
+            b'\x2E\x90\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF',
+        ),
+        (
+            -0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF,
+            b'\x3E\x90\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF',
+        ),
     ),
     _IT.FLOAT: (
         (None, b'\x4F'),
@@ -299,70 +297,204 @@ SIMPLE_SCALARS_MAP_BINARY = {
         (None, b'\x6F'),
         # TODO Clarify whether there's a valid zero-length Timestamp representation.
         (_DT(year=1, month=1, day=1), b'\x68\xC0\x81\x81\x81\x80\x80\x80\xc6'),
-        (_DT(year=1, month=1, day=1, tzinfo=OffsetTZInfo(timedelta(minutes=-1))),
-         b'\x68\xC1\x81\x81\x81\x80\x81\x80\xc6'),
-        (_DT(year=1, month=1, day=1, hour=0, minute=0, second=0, microsecond=1),
-         b'\x69\xC0\x81\x81\x81\x80\x80\x80\xC6\x01'),
-        (timestamp(year=1, month=1, day=1, precision=TimestampPrecision.DAY), b'\x64\xC0\x81\x81\x81'),
-        (timestamp(year=1, month=1, day=1, off_minutes=-1, precision=TimestampPrecision.SECOND),
-         b'\x67\xC1\x81\x81\x81\x80\x81\x80'),
         (
-            timestamp(year=1, month=1, day=1, hour=0, minute=0, second=0,
-                      microsecond=1, precision=TimestampPrecision.SECOND),
-            b'\x69\xC0\x81\x81\x81\x80\x80\x80\xC6\x01'
+            _DT(
+                year=1,
+                month=1,
+                day=1,
+                tzinfo=OffsetTZInfo(timedelta(minutes=-1)),
+            ),
+            b'\x68\xC1\x81\x81\x81\x80\x81\x80\xc6',
         ),
         (
-            timestamp(year=1, month=1, day=1, hour=0, minute=0, second=0,
-                      microsecond=100000, precision=TimestampPrecision.SECOND, fractional_precision=1),
-            b'\x69\xC0\x81\x81\x81\x80\x80\x80\xC1\x01'
-        ),
-        (timestamp(2016, precision=TimestampPrecision.YEAR), b'\x63\xC0\x0F\xE0'),  # -00:00
-        (timestamp(2016, off_hours=0, precision=TimestampPrecision.YEAR),
-            (b'\x63\x80\x0F\xE0', b'\x63\xC0\x0F\xE0')),
-        (
-            timestamp(2016, 2, 1, 0, 1, off_minutes=1, precision=TimestampPrecision.MONTH),
-            (b'\x64\x81\x0F\xE0\x82', b'\x64\xC0\x0F\xE0\x82')
-        ),
-        (
-            timestamp(2016, 2, 1, 23, 0, off_hours=-1, precision=TimestampPrecision.DAY),
-            (b'\x65\xFC\x0F\xE0\x82\x82', b'\x65\xC0\x0F\xE0\x82\x81')
+            _DT(
+                year=1,
+                month=1,
+                day=1,
+                hour=0,
+                minute=0,
+                second=0,
+                microsecond=1,
+            ),
+            b'\x69\xC0\x81\x81\x81\x80\x80\x80\xC6\x01',
         ),
         (
-            timestamp(2016, 2, 2, 0, 0, off_hours=-7, precision=TimestampPrecision.MINUTE),
-            b'\x68\x43\xA4\x0F\xE0\x82\x82\x87\x80'
+            timestamp(
+                year=1, month=1, day=1, precision=TimestampPrecision.DAY
+            ),
+            b'\x64\xC0\x81\x81\x81',
         ),
         (
-            timestamp(2016, 2, 2, 0, 0, 30, off_hours=-7, precision=TimestampPrecision.SECOND),
-            b'\x69\x43\xA4\x0F\xE0\x82\x82\x87\x80\x9E'
+            timestamp(
+                year=1,
+                month=1,
+                day=1,
+                off_minutes=-1,
+                precision=TimestampPrecision.SECOND,
+            ),
+            b'\x67\xC1\x81\x81\x81\x80\x81\x80',
         ),
         (
-            timestamp(2016, 2, 2, 0, 0, 30, 1000, off_hours=-7,
-                      precision=TimestampPrecision.SECOND),
+            timestamp(
+                year=1,
+                month=1,
+                day=1,
+                hour=0,
+                minute=0,
+                second=0,
+                microsecond=1,
+                precision=TimestampPrecision.SECOND,
+            ),
+            b'\x69\xC0\x81\x81\x81\x80\x80\x80\xC6\x01',
+        ),
+        (
+            timestamp(
+                year=1,
+                month=1,
+                day=1,
+                hour=0,
+                minute=0,
+                second=0,
+                microsecond=100000,
+                precision=TimestampPrecision.SECOND,
+                fractional_precision=1,
+            ),
+            b'\x69\xC0\x81\x81\x81\x80\x80\x80\xC1\x01',
+        ),
+        (
+            timestamp(2016, precision=TimestampPrecision.YEAR),
+            b'\x63\xC0\x0F\xE0',
+        ),  # -00:00
+        (
+            timestamp(2016, off_hours=0, precision=TimestampPrecision.YEAR),
+            (b'\x63\x80\x0F\xE0', b'\x63\xC0\x0F\xE0'),
+        ),
+        (
+            timestamp(
+                2016,
+                2,
+                1,
+                0,
+                1,
+                off_minutes=1,
+                precision=TimestampPrecision.MONTH,
+            ),
+            (b'\x64\x81\x0F\xE0\x82', b'\x64\xC0\x0F\xE0\x82'),
+        ),
+        (
+            timestamp(
+                2016,
+                2,
+                1,
+                23,
+                0,
+                off_hours=-1,
+                precision=TimestampPrecision.DAY,
+            ),
+            (b'\x65\xFC\x0F\xE0\x82\x82', b'\x65\xC0\x0F\xE0\x82\x81'),
+        ),
+        (
+            timestamp(
+                2016,
+                2,
+                2,
+                0,
+                0,
+                off_hours=-7,
+                precision=TimestampPrecision.MINUTE,
+            ),
+            b'\x68\x43\xA4\x0F\xE0\x82\x82\x87\x80',
+        ),
+        (
+            timestamp(
+                2016,
+                2,
+                2,
+                0,
+                0,
+                30,
+                off_hours=-7,
+                precision=TimestampPrecision.SECOND,
+            ),
+            b'\x69\x43\xA4\x0F\xE0\x82\x82\x87\x80\x9E',
+        ),
+        (
+            timestamp(
+                2016,
+                2,
+                2,
+                0,
+                0,
+                30,
+                1000,
+                off_hours=-7,
+                precision=TimestampPrecision.SECOND,
+            ),
             # When fractional_precision not specified, defaults to 6 (same as regular datetime).
-            b'\x6C\x43\xA4\x0F\xE0\x82\x82\x87\x80\x9E\xC6\x03\xE8'  # The last three octets represent 1000d-6
+            b'\x6C\x43\xA4\x0F\xE0\x82\x82\x87\x80\x9E\xC6\x03\xE8',  # The last three octets represent 1000d-6
         ),
         (
-            timestamp(2016, 2, 2, 0, 0, 30, 1000, off_hours=-7,
-                      precision=TimestampPrecision.SECOND, fractional_precision=3),
-            b'\x6B\x43\xA4\x0F\xE0\x82\x82\x87\x80\x9E\xC3\x01'
+            timestamp(
+                2016,
+                2,
+                2,
+                0,
+                0,
+                30,
+                1000,
+                off_hours=-7,
+                precision=TimestampPrecision.SECOND,
+                fractional_precision=3,
+            ),
+            b'\x6B\x43\xA4\x0F\xE0\x82\x82\x87\x80\x9E\xC3\x01',
         ),
         (
-            timestamp(2016, 2, 2, 0, 0, 30, 100000, off_hours=-7,
-                      precision=TimestampPrecision.SECOND, fractional_precision=1),
-            b'\x6B\x43\xA4\x0F\xE0\x82\x82\x87\x80\x9E\xC1\x01'
+            timestamp(
+                2016,
+                2,
+                2,
+                0,
+                0,
+                30,
+                100000,
+                off_hours=-7,
+                precision=TimestampPrecision.SECOND,
+                fractional_precision=1,
+            ),
+            b'\x6B\x43\xA4\x0F\xE0\x82\x82\x87\x80\x9E\xC1\x01',
         ),
         (
-            timestamp(2016, 2, 2, 0, 0, 30, precision=TimestampPrecision.SECOND,
-                      fractional_seconds=Decimal('0.000010000')),
-            (b'\x6B\xC0\x0F\xE0\x82\x82\x80\x80\x9E\xC9\x27\x10',
-             b'\x6A\xC0\x0F\xE0\x82\x82\x80\x80\x9E\xC6\x0A')
+            timestamp(
+                2016,
+                2,
+                2,
+                0,
+                0,
+                30,
+                precision=TimestampPrecision.SECOND,
+                fractional_seconds=Decimal('0.000010000'),
+            ),
+            (
+                b'\x6B\xC0\x0F\xE0\x82\x82\x80\x80\x9E\xC9\x27\x10',
+                b'\x6A\xC0\x0F\xE0\x82\x82\x80\x80\x9E\xC6\x0A',
+            ),
         ),
         (
-            timestamp(2016, 2, 2, 0, 0, 30, precision=TimestampPrecision.SECOND,
-                      fractional_seconds=Decimal('0.7e-500')),
-            (b'\x6B\xC0\x0F\xE0\x82\x82\x80\x80\x9E\x43\xF5\x07',
-             b'\x69\xC0\x0F\xE0\x82\x82\x80\x80\x9E\xC9')
-        )
+            timestamp(
+                2016,
+                2,
+                2,
+                0,
+                0,
+                30,
+                precision=TimestampPrecision.SECOND,
+                fractional_seconds=Decimal('0.7e-500'),
+            ),
+            (
+                b'\x6B\xC0\x0F\xE0\x82\x82\x80\x80\x9E\x43\xF5\x07',
+                b'\x69\xC0\x0F\xE0\x82\x82\x80\x80\x9E\xC9',
+            ),
+        ),
     ),
     _IT.SYMBOL: (
         (None, b'\x7F'),
@@ -374,8 +506,14 @@ SIMPLE_SCALARS_MAP_BINARY = {
         (u'', b'\x80'),
         (u'abc', b'\x83abc'),
         (u'abcdefghijklmno', b'\x8E\x8Fabcdefghijklmno'),
-        (u'a\U0001f4a9c', b'\x86' + bytearray([b for b in u'a\U0001f4a9c'.encode('utf-8')])),
-        (u'a\u0009\x0a\x0dc', b'\x85' + bytearray([b for b in 'a\t\n\rc'.encode('utf-8')])),
+        (
+            u'a\U0001f4a9c',
+            b'\x86' + bytearray(list(u'a\U0001f4a9c'.encode('utf-8'))),
+        ),
+        (
+            u'a\u0009\x0a\x0dc',
+            b'\x85' + bytearray(list('a\t\n\rc'.encode('utf-8'))),
+        ),
     ),
     _IT.CLOB: (
         (None, b'\x9F'),
@@ -389,15 +527,9 @@ SIMPLE_SCALARS_MAP_BINARY = {
         (b'abc', b'\xA3' + b'abc'),
         (b'abcdefghijklmno', b'\xAE\x8Fabcdefghijklmno'),
     ),
-    _IT.LIST: (
-        (None, b'\xBF'),
-    ),
-    _IT.SEXP: (
-        (None, b'\xCF'),
-    ),
-    _IT.STRUCT: (
-        (None, b'\xDF'),
-    ),
+    _IT.LIST: ((None, b'\xBF'),),
+    _IT.SEXP: ((None, b'\xCF'),),
+    _IT.STRUCT: ((None, b'\xDF'),),
 }
 
 
@@ -437,13 +569,11 @@ def assert_writer_events(p, new_writer):
     if not is_exception(p.expected):
         assert result_type is WriteEventType.COMPLETE
 
-        if isinstance(p.expected, (tuple, list)):
-            expecteds = p.expected
-        else:
-            expecteds = (p.expected,)
-        assert_res = False
-        for expected in expecteds:
-            if expected == buf.getvalue():
-                assert_res = True
-                break
+        expecteds = (
+            p.expected
+            if isinstance(p.expected, (tuple, list))
+            else (p.expected,)
+        )
+
+        assert_res = any(expected == buf.getvalue() for expected in expecteds)
         assert assert_res

@@ -56,11 +56,11 @@ _LIB_SUFFIX_LINUX = '.so'
 
 def _get_lib_name(name):
     if _MAC:
-        return '%s%s%s' % (_LIB_PREFIX, name, _LIB_SUFFIX_MAC)
+        return f'{_LIB_PREFIX}{name}{_LIB_SUFFIX_MAC}'
     elif _LINUX:
-        return '%s%s%s' % (_LIB_PREFIX, name, _LIB_SUFFIX_LINUX)
+        return f'{_LIB_PREFIX}{name}{_LIB_SUFFIX_LINUX}'
     elif _WIN:
-        return '%s%s' % (name, _LIB_SUFFIX_WIN)
+        return f'{name}{_LIB_SUFFIX_WIN}'
 
 
 def _library_exists():
@@ -134,7 +134,7 @@ def _move_lib_win(name):
     for f in os.listdir(_IONC_INCLUDES_LOCATIONS[name]):
         shutil.copy(join(_IONC_INCLUDES_LOCATIONS[name], f), _C_EXT_DEPENDENCY_INCLUDES_LOCATIONS[name])
 
-    lib_path = join(_IONC_DIR, name, 'Release', '%s%s' % (name, _LIB_SUFFIX_WIN))
+    lib_path = join(_IONC_DIR, name, 'Release', f'{name}{_LIB_SUFFIX_WIN}')
     shutil.copy(lib_path, _C_EXT_DEPENDENCY_LIB_LOCATION)
 
 
@@ -154,7 +154,7 @@ def _move_lib_mac_and_linux(name):
     for file in os.listdir(dir_path):
         file_path = join(dir_path, file)
         if _LINUX:
-            if file.startswith('%s%s%s' % (_LIB_PREFIX, name, _LIB_SUFFIX_LINUX)):
+            if file.startswith(f'{_LIB_PREFIX}{name}{_LIB_SUFFIX_LINUX}'):
                 shutil.copy(file_path, _C_EXT_DEPENDENCY_LIB_LOCATION)
         elif _MAC:
             if file.endswith(_LIB_SUFFIX_MAC):
@@ -192,9 +192,8 @@ def _install_ionc():
     if not _check_dependencies():
         return False
 
-    if not _library_exists():
-        if not _download_ionc():
-            return False
+    if not _library_exists() and not _download_ionc():
+        return False
     move_build_lib_for_distribution()
 
     return True

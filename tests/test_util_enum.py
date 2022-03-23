@@ -42,8 +42,7 @@ def test_enum_fields():
     assert SimpleEnum.B.value == 2
     assert SimpleEnum.B.name == 'B'
 
-    values = list(SimpleEnum)
-    values.sort()
+    values = sorted(SimpleEnum)
     assert values == [SimpleEnum.A, SimpleEnum.B]
 
 

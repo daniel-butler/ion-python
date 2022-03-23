@@ -84,8 +84,7 @@ class BufferTree:
     def __depth_traverse(self, node):
         if node.children:
             for child in node.children:
-                for val in self.__depth_traverse(child):
-                    yield val
+                yield from self.__depth_traverse(child)
         yield node.value
 
     def start_container(self):

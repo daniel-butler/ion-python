@@ -46,13 +46,18 @@ def _illegal_character(c, ctx, message=''):
         message (Optional[str]): Additional information, as necessary.
 
     """
-    container_type = ctx.container.ion_type is None and 'top-level' or ctx.container.ion_type.name
-    value_type = ctx.ion_type is None and 'unknown' or ctx.ion_type.name
+    container_type = (
+        'top-level'
+        if ctx.container.ion_type is None
+        else ctx.container.ion_type.name
+    )
+
+    value_type = 'unknown' if ctx.ion_type is None else ctx.ion_type.name
     if c is None:
         header = 'Illegal token'
     else:
         c = 'EOF' if BufferQueue.is_eof(c) else _chr(c)
-        header = 'Illegal character %s' % (c,)
+        header = f'Illegal character {c}'
     raise IonException('%s at position %d in %s value contained in %s. %s Pending value: %s'
                        % (header, ctx.queue.position, value_type, container_type, message, ctx.value))
 
@@ -353,7 +358,7 @@ class _HandlerContext():
             if not annotations and depth == 0 and isinstance(value, _IVMToken):
                 event = value.ivm_event()
                 if event is None:
-                    _illegal_character(None, self, 'Illegal IVM: %s.' % (value.text,))
+                    _illegal_character(None, self, f'Illegal IVM: {value.text}.')
                 return Transition(event, whence)
             assert not isinstance(value, _IVMToken)
 
@@ -427,7 +432,10 @@ class _HandlerContext():
         elif ion_type is IonType.SEXP:
             container = _C_SEXP
         else:
-            raise TypeError('Cannot derive container context for non-container type %s.' % (ion_type.name,))
+            raise TypeError(
+                f'Cannot derive container context for non-container type {ion_type.name}.'
+            )
+
         return _HandlerContext(
             container=container,
             queue=self.queue,
@@ -484,7 +492,10 @@ class _HandlerContext():
         assert self.pending_symbol is not None
         assert not self.value
         annotations = (_as_symbol(self.pending_symbol, is_symbol_value=False),)  # pending_symbol becomes an annotation
-        self.annotations = annotations if not self.annotations else self.annotations + annotations
+        self.annotations = (
+            self.annotations + annotations if self.annotations else annotations
+        )
+
         self.ion_type = None
         self.pending_symbol = None  # reset pending symbol
         self.quoted_text = False
@@ -629,11 +640,10 @@ def _number_or_timestamp_handler(c, ctx):
                                          ctx.ion_type, _parse_decimal_int(ctx.value))
             if c == _SLASH:
                 trans = ctx.immediate_transition(_number_slash_end_handler(c, ctx, trans))
+        elif c in _DIGITS:
+            val.append(c)
         else:
-            if c not in _DIGITS:
-                trans = ctx.immediate_transition(_NUMBER_OR_TIMESTAMP_TABLE[c](c, ctx))
-            else:
-                val.append(c)
+            trans = ctx.immediate_transition(_NUMBER_OR_TIMESTAMP_TABLE[c](c, ctx))
         c, _ = yield trans
 
 
@@ -690,19 +700,17 @@ def _numeric_handler_factory(charset, transition, assertion, illegal_before_unde
         while True:
             if _ends_value(c):
                 if prev == _UNDERSCORE or prev in illegal_at_end:
-                    _illegal_character(c, ctx, '%s at end of number.' % (_chr(prev),))
+                    _illegal_character(c, ctx, f'{_chr(prev)} at end of number.')
                 trans = ctx.event_transition(IonThunkEvent, IonEventType.SCALAR, ctx.ion_type, parse_func(ctx.value))
                 if c == _SLASH:
                     trans = ctx.immediate_transition(_number_slash_end_handler(c, ctx, trans))
+            elif c == _UNDERSCORE:
+                if prev == _UNDERSCORE or prev in illegal_before_underscore:
+                    _illegal_character(c, ctx, f'Underscore after {_chr(prev)}.')
+            elif c in charset:
+                val.append(c)
             else:
-                if c == _UNDERSCORE:
-                    if prev == _UNDERSCORE or prev in illegal_before_underscore:
-                        _illegal_character(c, ctx, 'Underscore after %s.' % (_chr(prev),))
-                else:
-                    if c not in charset:
-                        trans = transition(prev, c, ctx, trans)
-                    else:
-                        val.append(c)
+                trans = transition(prev, c, ctx, trans)
             prev = c
             c, _ = yield trans
     return numeric_handler
@@ -753,7 +761,7 @@ def _coefficient_handler_factory(trans_table, parse_func, assertion=lambda c, ct
     """
     def transition(prev, c, ctx, trans):
         if prev == _UNDERSCORE:
-            _illegal_character(c, ctx, 'Underscore before %s.' % (_chr(c),))
+            _illegal_character(c, ctx, f'Underscore before {_chr(c)}.')
         return ctx.immediate_transition(trans_table[c](c, ctx))
     return _numeric_handler_factory(_DIGITS, transition, assertion, (_DOT,), parse_func,
                                     ion_type=ion_type, append_first_if_not=append_first_if_not)
@@ -841,9 +849,7 @@ class _TimestampState(Enum):
 class _TimestampTokens:
     """Holds the individual numeric tokens (as strings) that compose a `Timestamp`."""
     def __init__(self, year=None):
-        fld = []
-        for i in iter(_TimestampState):
-            fld.append(None)
+        fld = [None for _ in iter(_TimestampState)]
         if year is not None:
             fld[_TimestampState.YEAR] = year
         self._fields = fld
@@ -1042,9 +1048,8 @@ def _comment_handler(c, ctx, whence):
             if prev == _ASTERISK and c == _SLASH:
                 done = True
             prev = c
-        else:
-            if c in _NEWLINES or BufferQueue.is_eof(c):
-                done = True
+        elif c in _NEWLINES or BufferQueue.is_eof(c):
+            done = True
     yield ctx.set_self_delimiting(True).immediate_transition(whence)
 
 
@@ -1058,7 +1063,7 @@ def _sexp_slash_handler(c, ctx, whence=None, pending_event=None):
         whence = ctx.whence
     c, self = yield
     ctx.queue.unread(c)
-    if c == _ASTERISK or c == _SLASH:
+    if c in [_ASTERISK, _SLASH]:
         yield ctx.immediate_transition(_comment_handler(_SLASH, ctx, whence))
     else:
         if pending_event is not None:
@@ -1100,7 +1105,7 @@ def _long_string_handler(c, ctx, is_field_name=False):
     assert c == _SINGLE_QUOTE
     is_clob = ctx.ion_type is IonType.CLOB
     max_char = _MAX_CLOB_CHAR if is_clob else _MAX_TEXT_CHAR
-    assert not (is_clob and is_field_name)
+    assert not is_clob or not is_field_name
     if not is_clob and not is_field_name:
         ctx.set_ion_type(IonType.STRING)
     assert not ctx.value
@@ -1122,56 +1127,58 @@ def _long_string_handler(c, ctx, is_field_name=False):
                 in_data = not in_data
                 ctx.set_quoted_text(in_data)
                 quotes = 0
-        else:
-            if in_data:
-                _validate_long_string_text(c, ctx, max_char)
-                # Any quotes found in the meantime are part of the data
-                val.extend(_SINGLE_QUOTES[quotes])
-                if not _is_escaped_newline(c):
-                    val.append(c)
-                quotes = 0
-            else:
-                if quotes > 0:
-                    assert quotes < 3
-                    if is_field_name or is_clob:
+        elif in_data:
+            _validate_long_string_text(c, ctx, max_char)
+            # Any quotes found in the meantime are part of the data
+            val.extend(_SINGLE_QUOTES[quotes])
+            if not _is_escaped_newline(c):
+                val.append(c)
+            quotes = 0
+        elif quotes > 0:
+            assert quotes < 3
+            if is_field_name or is_clob:
                         # There are at least two values here, which is illegal for field names or within clobs.
-                        _illegal_character(c, ctx, 'Malformed triple-quoted text: %s' % (val,))
-                    else:
+                _illegal_character(c, ctx, f'Malformed triple-quoted text: {val}')
+            else:
                         # This string value is followed by a quoted symbol.
-                        if ctx.container.is_delimited:
-                            _illegal_character(c, ctx, 'Delimiter %s not found after value.'
-                                               % (_chr(ctx.container.delimiter[0]),))
-                        trans = ctx.event_transition(IonEvent, IonEventType.SCALAR, ctx.ion_type, ctx.value.as_text())
-                        if quotes == 1:
-                            if BufferQueue.is_eof(c):
-                                _illegal_character(c, ctx, "Unexpected EOF.")
-                            # c was read as a single byte. Re-read it as a code point.
-                            ctx.queue.unread(c)
-                            ctx.set_quoted_text(True)
-                            c, _ = yield ctx.immediate_transition(self)
-                            trans = _CompositeTransition(
-                                trans,
-                                ctx,
-                                partial(_quoted_symbol_handler, c, is_field_name=False),
-                            )
-                        else:  # quotes == 2
-                            trans = _CompositeTransition(trans, ctx, None, ctx.set_empty_symbol())
-                elif c not in _WHITESPACE:
-                    if is_clob:
-                        trans = ctx.immediate_transition(_clob_end_handler(c, ctx))
-                    elif c == _SLASH:
-                        if ctx.container.ion_type is IonType.SEXP:
-                            pending = ctx.event_transition(IonEvent, IonEventType.SCALAR,
-                                                           ctx.ion_type, ctx.value.as_text())
-                            trans = ctx.immediate_transition(_sexp_slash_handler(c, ctx, self, pending))
-                        else:
-                            trans = ctx.immediate_transition(_comment_handler(c, ctx, self))
-                    elif is_field_name:
-                        if c != _COLON:
-                            _illegal_character(c, ctx, 'Illegal character after field name %s.' % (val,))
-                        trans = ctx.immediate_transition(ctx.whence)
-                    else:
-                        trans = ctx.event_transition(IonEvent, IonEventType.SCALAR, ctx.ion_type, ctx.value.as_text())
+                if ctx.container.is_delimited:
+                    _illegal_character(
+                        c,
+                        ctx,
+                        f'Delimiter {_chr(ctx.container.delimiter[0])} not found after value.',
+                    )
+
+                trans = ctx.event_transition(IonEvent, IonEventType.SCALAR, ctx.ion_type, ctx.value.as_text())
+                if quotes == 1:
+                    if BufferQueue.is_eof(c):
+                        _illegal_character(c, ctx, "Unexpected EOF.")
+                    # c was read as a single byte. Re-read it as a code point.
+                    ctx.queue.unread(c)
+                    ctx.set_quoted_text(True)
+                    c, _ = yield ctx.immediate_transition(self)
+                    trans = _CompositeTransition(
+                        trans,
+                        ctx,
+                        partial(_quoted_symbol_handler, c, is_field_name=False),
+                    )
+                else:  # quotes == 2
+                    trans = _CompositeTransition(trans, ctx, None, ctx.set_empty_symbol())
+        elif c not in _WHITESPACE:
+            if is_clob:
+                trans = ctx.immediate_transition(_clob_end_handler(c, ctx))
+            elif c == _SLASH:
+                if ctx.container.ion_type is IonType.SEXP:
+                    pending = ctx.event_transition(IonEvent, IonEventType.SCALAR,
+                                                   ctx.ion_type, ctx.value.as_text())
+                    trans = ctx.immediate_transition(_sexp_slash_handler(c, ctx, self, pending))
+                else:
+                    trans = ctx.immediate_transition(_comment_handler(c, ctx, self))
+            elif is_field_name:
+                if c != _COLON:
+                    _illegal_character(c, ctx, f'Illegal character after field name {val}.')
+                trans = ctx.immediate_transition(ctx.whence)
+            else:
+                trans = ctx.event_transition(IonEvent, IonEventType.SCALAR, ctx.ion_type, ctx.value.as_text())
         c, _ = yield trans
         ctx.set_self_delimiting(False)  # If comments separated long string components, this would have been set.
         trans = here
@@ -1321,26 +1328,29 @@ def _inf_or_operator_handler_factory(c_start, is_delegate=True):
             if maybe_inf:
                 if match_index < len(_INF_SUFFIX):
                     maybe_inf = c == _INF_SUFFIX[match_index]
+                elif _ends_value(c) or (ctx.container.ion_type is IonType.SEXP and c in _OPERATORS):
+                    yield ctx.event_transition(
+                        IonEvent, IonEventType.SCALAR, IonType.FLOAT, c_start == _MINUS and _NEG_INF or _POS_INF
+                    )
                 else:
-                    if _ends_value(c) or (ctx.container.ion_type is IonType.SEXP and c in _OPERATORS):
-                        yield ctx.event_transition(
-                            IonEvent, IonEventType.SCALAR, IonType.FLOAT, c_start == _MINUS and _NEG_INF or _POS_INF
-                        )
-                    else:
-                        maybe_inf = False
+                    maybe_inf = False
             if maybe_inf:
                 match_index += 1
             else:
                 ctx.set_unicode()
                 if match_index > 0:
                     next_ctx = ctx.derive_child_context(ctx.whence)
-                    for ch in _INF_SUFFIX[0:match_index]:
+                    for ch in _INF_SUFFIX[:match_index]:
                         next_ctx.value.append(ch)
                 break
             c, self = yield trans
         if ctx.container is not _C_SEXP:
-            _illegal_character(c, next_ctx is None and ctx or next_ctx,
-                               'Illegal character following %s.' % (_chr(c_start),))
+            _illegal_character(
+                c,
+                next_ctx is None and ctx or next_ctx,
+                f'Illegal character following {_chr(c_start)}.',
+            )
+
         if match_index == 0:
             if c in _OPERATORS:
                 yield ctx.immediate_transition(_operator_symbol_handler(c, ctx))
@@ -1377,14 +1387,19 @@ def _symbol_token_end(c, ctx, is_field_name, value=None):
     """Returns a transition which ends the current symbol token."""
     if value is None:
         value = ctx.value
-    if is_field_name or c in _SYMBOL_TOKEN_TERMINATORS or ctx.quoted_text:
-        # This might be an annotation or a field name. Mark it as self-delimiting because a symbol token termination
-        # character has been found.
-        ctx.set_self_delimiting(ctx.quoted_text).set_pending_symbol(value).set_quoted_text(False)
-        trans = ctx.immediate_transition(ctx.whence)
-    else:
-        trans = ctx.event_transition(IonEvent, IonEventType.SCALAR, IonType.SYMBOL, _as_symbol(value))
-    return trans
+    if (
+        not is_field_name
+        and c not in _SYMBOL_TOKEN_TERMINATORS
+        and not ctx.quoted_text
+    ):
+        return ctx.event_transition(
+            IonEvent, IonEventType.SCALAR, IonType.SYMBOL, _as_symbol(value)
+        )
+
+    # This might be an annotation or a field name. Mark it as self-delimiting because a symbol token termination
+    # character has been found.
+    ctx.set_self_delimiting(ctx.quoted_text).set_pending_symbol(value).set_quoted_text(False)
+    return ctx.immediate_transition(ctx.whence)
 
 
 @coroutine
@@ -1735,14 +1750,12 @@ def _lob_end_handler_factory(ion_type, action, validate=lambda c, ctx, action_re
 def _blob_end_handler_factory():
     """Generates the handler for the end of a blob value. This includes the base-64 data and the two closing braces."""
     def expand_res(res):
-        if res is None:
-            return 0, 0
-        return res
+        return (0, 0) if res is None else res
 
     def action(c, ctx, prev, res, is_first):
         num_digits, num_pads = expand_res(res)
         if c in _BASE64_DIGITS:
-            if prev == _CLOSE_BRACE or prev == _BASE64_PAD:
+            if prev in [_CLOSE_BRACE, _BASE64_PAD]:
                 _illegal_character(c, ctx.set_ion_type(IonType.BLOB))
             num_digits += 1
         elif c == _BASE64_PAD:
@@ -1939,8 +1952,12 @@ def _container_handler(c, ctx):
         if has_pending_symbol():
             assert not child_context.value
             if ctx.ion_type is IonType.STRUCT and child_context.field_name is None:
-                _illegal_character(c, ctx,
-                                   'Encountered STRUCT value %s without field name.' % (child_context.pending_symbol,))
+                _illegal_character(
+                    c,
+                    ctx,
+                    f'Encountered STRUCT value {child_context.pending_symbol} without field name.',
+                )
+
             return symbol_value_event()
         return None
 
@@ -2196,14 +2213,18 @@ def _next_code_point_handler(whence, ctx):
                         num_digits = 12 if low_surrogate_required else 6
                         low_surrogate_required = False
                     elif low_surrogate_required:
-                        _illegal_character(code_point, ctx,
-                                           'Unpaired high surrogate escape sequence %s.' % (escape_sequence,))
+                        _illegal_character(
+                            code_point,
+                            ctx,
+                            f'Unpaired high surrogate escape sequence {escape_sequence}.',
+                        )
+
                     elif code_point == _ord(b'x'):
                         num_digits = 4  # 2-digit hex escapes
                     elif code_point == _ord(b'U') and unicode_escapes_allowed:
                         num_digits = 10  # 8-digit unicode escapes
                     elif code_point in _COMMON_ESCAPES:
-                        if code_point == _SLASH or code_point == _QUESTION_MARK:
+                        if code_point in [_SLASH, _QUESTION_MARK]:
                             escape_sequence = b''  # Drop the \. Python does not recognize these as escapes.
                         escape_sequence += six.int2byte(code_point)
                         break
@@ -2216,8 +2237,12 @@ def _next_code_point_handler(whence, ctx):
                     escape_sequence += six.int2byte(code_point)
                 else:
                     if code_point not in _HEX_DIGITS:
-                        _illegal_character(code_point, ctx,
-                                           'Non-hex character %s found in unicode escape.' % (_chr(code_point),))
+                        _illegal_character(
+                            code_point,
+                            ctx,
+                            f'Non-hex character {_chr(code_point)} found in unicode escape.',
+                        )
+
                     escape_sequence += six.int2byte(code_point)
                     if len(escape_sequence) == num_digits:
                         break
@@ -2235,7 +2260,12 @@ def _next_code_point_handler(whence, ctx):
                 ctx.set_code_point(code_point)
                 yield Transition(None, whence)
         elif low_surrogate_required:
-            _illegal_character(code_point, ctx, 'Unpaired high surrogate escape sequence %s.' % (escape_sequence,))
+            _illegal_character(
+                code_point,
+                ctx,
+                f'Unpaired high surrogate escape sequence {escape_sequence}.',
+            )
+
         if code_point == _CARRIAGE_RETURN:
             # Normalize all newlines (\r, \n, and \r\n) to \n .
             if len(queue) == 0:

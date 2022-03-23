@@ -32,7 +32,7 @@ class WriteParameter:
         self.methods = methods
 
     def __str__(self):
-        return "[" + str(self.value) + ", " + str(self.expected) + ", " + str(self.methods) + "]"
+        return f"[{str(self.value)}, {str(self.expected)}, {str(self.methods)}]"
 
 
 int_methods = (_write_int, _write_int_uncached)

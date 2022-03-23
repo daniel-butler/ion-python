@@ -54,6 +54,7 @@ class _TypeID(Enum):
 
 
 # Mappings from type code to value type.
+# Mappings from type code to value type.
 _TID_VALUE_TYPE_TABLE = (
     IonType.NULL,
     IonType.BOOL,
@@ -86,7 +87,7 @@ _SIGNED_INT_SIGN_VALUE_MASK = 0b01111111
 
 _LENGTH_LN_MAX = 0xD
 _LENGTH_FIELD_FOLLOWS = 0xE
-_ALL_LENGTH_LNS = tuple(range(0, _LENGTH_FIELD_FOLLOWS + 1))
+_ALL_LENGTH_LNS = tuple(range(_LENGTH_FIELD_FOLLOWS + 1))
 _NON_ZERO_LENGTH_LNS = tuple(range(1, _LENGTH_FIELD_FOLLOWS + 1))
 _ANNOTATION_LENGTH_LNS = tuple(range(3, _LENGTH_FIELD_FOLLOWS + 1))
 
@@ -95,7 +96,7 @@ _IVM_TAIL = b'\x01\x00\xEA'
 _IVM_TAIL_LEN = len(_IVM_TAIL)
 
 # Type IDs for value types that are nullable.
-_NULLABLE_TIDS = tuple(range(0, 14))
+_NULLABLE_TIDS = tuple(range(14))
 _NULL_LN = 0xF
 
 _STATIC_SCALARS = (
@@ -260,8 +261,11 @@ class _HandlerContext(record(
             annotations = self.annotations
         if annotations is None:
             annotations = ()
-        if not (event_type is IonEventType.CONTAINER_START) and \
-                annotations and (self.limit - self.queue.position) != 0:
+        if (
+            event_type is not IonEventType.CONTAINER_START
+            and annotations
+            and (self.limit - self.queue.position) != 0
+        ):
             # This value is contained in an annotation wrapper, from which its limit was inherited. It must have
             # reached, but not surpassed, that limit.
             raise IonException('Incorrect annotation wrapper length.')

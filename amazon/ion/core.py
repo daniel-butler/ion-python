@@ -165,9 +165,11 @@ class IonEvent(record(
                 if self_fractional_seconds != other_fractional_seconds:
                     return False
 
-            if isinstance(self.value, datetime):
-                if self.value.utcoffset() != other.value.utcoffset():
-                    return False
+            if (
+                isinstance(self.value, datetime)
+                and self.value.utcoffset() != other.value.utcoffset()
+            ):
+                return False
 
         return (self.event_type == other.event_type
             and self.ion_type == other.ion_type
@@ -330,7 +332,7 @@ class OffsetTZInfo(tzinfo):
     """A trivial UTC offset :class:`tzinfo`."""
     def __init__(self, delta=_ZERO_DELTA):
         if delta <= _MIN_OFFSET or delta >= _MAX_OFFSET:
-            raise ValueError('Invalid UTC offset: %s' % delta)
+            raise ValueError(f'Invalid UTC offset: {delta}')
         self.delta = delta
 
     def dst(self, date_time):
@@ -348,7 +350,7 @@ class OffsetTZInfo(tzinfo):
         if delta < _ZERO_DELTA:
             sign = '-'
             delta = _ZERO_DELTA - delta
-        return 'OffsetTZInfo(%s%s)' % (sign, delta)
+        return f'OffsetTZInfo({sign}{delta})'
 
 
 class TimestampPrecision(Enum):
@@ -592,10 +594,7 @@ def timestamp(year, month=1, day=1,
         else:
             delta += minutes_delta
 
-    tz = None
-    if delta is not None:
-        tz = OffsetTZInfo(delta)
-
+    tz = OffsetTZInfo(delta) if delta is not None else None
     return Timestamp(
         year, month, day,
         hour, minute, second, microsecond,
@@ -632,11 +631,10 @@ class Multimap(MutableMapping):
         self.__store[key] = MultimapValue(value)
 
     def __len__(self):
-        return sum([len(values) for values in six.itervalues(self.__store)])
+        return sum(len(values) for values in six.itervalues(self.__store))
 
     def __iter__(self):
-        for key in six.iterkeys(self.__store):
-            yield key
+        yield from six.iterkeys(self.__store)
 
     def __str__(self):
         return repr(self)
@@ -663,19 +661,13 @@ class Multimap(MutableMapping):
                 yield (key, value)
 
     def items(self):
-        output = []
-        for k, v in self.iteritems():
-            output.append((k, v))
-        return output
+        return list(self.iteritems())
 
 
 class MultimapValue(MutableSequence):
 
     def __init__(self, *args):
-        if args is not None:
-            self.__store = [x for x in args]
-        else:
-            self.__store = []
+        self.__store = list(args) if args is not None else []
 
     def insert(self, index, value):
         self.__setitem__(index, value)
@@ -693,5 +685,4 @@ class MultimapValue(MutableSequence):
         del self.__store[index]
 
     def __iter__(self):
-        for x in self.__store:
-            yield x
+        yield from self.__store

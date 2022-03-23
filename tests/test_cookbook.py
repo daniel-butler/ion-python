@@ -49,14 +49,14 @@ def test_reading_simpleion_loads():
     # http://amzn.github.io/ion-docs/guides/cookbook.html#reading-and-writing-ion-data
     data = u'{hello: "world"}'
     value = simpleion.loads(data)
-    assert u'hello world' == u'hello %s' % value[u'hello']
+    assert u'hello world' == f"hello {value[u'hello']}"
 
 
 def test_reading_simpleion_load():
     # http://amzn.github.io/ion-docs/guides/cookbook.html#reading-and-writing-ion-data
     data = BytesIO(b'{hello: "world"}')
     value = simpleion.load(data)
-    assert u'hello world' == u'hello %s' % value[u'hello']
+    assert u'hello world' == f"hello {value[u'hello']}"
 
 
 def test_writing_simpleion_dumps():
@@ -73,8 +73,10 @@ def test_writing_simpleion_dump():
     value = simpleion.loads(data)
     ion = BytesIO()
     simpleion.dump(value, ion, binary=True)
-    assert b'\xe0\x01\x00\xea\xec\x81\x83\xde\x88\x87\xb6\x85hello\xde\x87\x8a\x85world' == ion.getvalue() \
-           or b'\xe0\x01\x00\xea\xeb\x81\x83\xd8\x87\xb6\x85hello\xd7\x8a\x85world' == ion.getvalue()
+    assert ion.getvalue() in [
+        b'\xe0\x01\x00\xea\xec\x81\x83\xde\x88\x87\xb6\x85hello\xde\x87\x8a\x85world',
+        b'\xe0\x01\x00\xea\xeb\x81\x83\xd8\x87\xb6\x85hello\xd7\x8a\x85world',
+    ]
 
 
 def test_reading_simpleion_loads_multiple_top_level_values():
@@ -126,7 +128,7 @@ def test_reading_events_non_blocking():
     # There is no more data and a value has been completed.
     # Therefore, the reader conveys STREAM_END.
     assert event.event_type == IonEventType.STREAM_END
-    assert u'hello world' == u'%s %s' % (hello, world)
+    assert u'hello world' == f'{hello} {world}'
 
 
 def test_writing_events_non_blocking():
@@ -172,7 +174,7 @@ def test_reading_events_blocking():
     # There is no more data and a value has been completed.
     # Therefore, the reader conveys STREAM_END.
     assert event.event_type == IonEventType.STREAM_END
-    assert u'hello world' == u'%s %s' % (hello, world)
+    assert u'hello world' == f'{hello} {world}'
 
 
 def test_writing_events_blocking():
@@ -238,7 +240,7 @@ def test_write_numeric_with_annotation_simpleion():
     # http://amzn.github.io/ion-docs/guides/cookbook.html#reading-numeric-types
     value = IonPyFloat.from_value(IonType.FLOAT, 123, (u'abc',))
     data = simpleion.dumps(value, binary=False)
-    assert data == u'$ion_1_0 abc::123e+0' or data == u'$ion_1_0 abc::123.0e0'
+    assert data in [u'$ion_1_0 abc::123e+0', u'$ion_1_0 abc::123.0e0']
 
 
 def test_read_numerics_events():
@@ -291,18 +293,21 @@ def sparse_reads_data():
          }'''
     data = simpleion.dumps(simpleion.loads(data, single_value=False), sequence_as_stream=True)
     # This byte literal is included in the examples.
-    assert data == b'\xe0\x01\x00\xea' \
-                   b'\xee\xa5\x81\x83\xde\xa1\x87\xbe\x9e\x83foo\x88quantity\x83' \
-                   b'bar\x82id\x83baz\x85items\xe7\x81\x8a\xde\x83\x8b!\x01\xea' \
-                   b'\x81\x8c\xde\x86\x84\x81x\x8d!\x07\xee\x95\x81\x8e\xde\x91' \
-                   b'\x8f\xbe\x8e\x86thing1\x86thing2\xe7\x81\x8a\xde\x83\x8b!' \
-                   b'\x13\xea\x81\x8c\xde\x86\x84\x81y\x8d!\x08' \
-           or data == b'\xe0\x01\x00\xea' \
-                      b'\xee\xa5\x81\x83\xde\xa1\x87\xbe\x9e\x83foo\x88quantity\x83' \
-                      b'bar\x82id\x83baz\x85items\xe6\x81\x8a\xd3\x8b!\x01\xe9' \
-                      b'\x81\x8c\xd6\x84\x81x\x8d!\x07\xee\x95\x81\x8e\xde\x91' \
-                      b'\x8f\xbe\x8e\x86thing1\x86thing2\xe6\x81\x8a\xd3\x8b!' \
-                      b'\x13\xe9\x81\x8c\xd6\x84\x81y\x8d!\x08'
+    assert data in [
+        b'\xe0\x01\x00\xea'
+        b'\xee\xa5\x81\x83\xde\xa1\x87\xbe\x9e\x83foo\x88quantity\x83'
+        b'bar\x82id\x83baz\x85items\xe7\x81\x8a\xde\x83\x8b!\x01\xea'
+        b'\x81\x8c\xde\x86\x84\x81x\x8d!\x07\xee\x95\x81\x8e\xde\x91'
+        b'\x8f\xbe\x8e\x86thing1\x86thing2\xe7\x81\x8a\xde\x83\x8b!'
+        b'\x13\xea\x81\x8c\xde\x86\x84\x81y\x8d!\x08',
+        b'\xe0\x01\x00\xea'
+        b'\xee\xa5\x81\x83\xde\xa1\x87\xbe\x9e\x83foo\x88quantity\x83'
+        b'bar\x82id\x83baz\x85items\xe6\x81\x8a\xd3\x8b!\x01\xe9'
+        b'\x81\x8c\xd6\x84\x81x\x8d!\x07\xee\x95\x81\x8e\xde\x91'
+        b'\x8f\xbe\x8e\x86thing1\x86thing2\xe6\x81\x8a\xd3\x8b!'
+        b'\x13\xe9\x81\x8c\xd6\x84\x81y\x8d!\x08',
+    ]
+
     return data
 
 
@@ -310,10 +315,12 @@ def test_sparse_reads_simpleion():
     # http://amzn.github.io/ion-docs/guides/cookbook.html#performing-sparse-reads
     data = sparse_reads_data()  # The binary Ion equivalent of the above data.
     values = simpleion.loads(data, single_value=False)
-    sum = 0
-    for value in values:
-        if u'foo' == value.ion_annotations[0].text:
-            sum += value[u'quantity']
+    sum = sum(
+        value[u'quantity']
+        for value in values
+        if value.ion_annotations[0].text == u'foo'
+    )
+
     assert 20 == sum
 
 
@@ -326,21 +333,19 @@ def test_sparse_reads_events():
     while event != ION_STREAM_END_EVENT:
         assert event.event_type == IonEventType.CONTAINER_START
         assert event.ion_type == IonType.STRUCT
-        if u'foo' == event.annotations[0].text:
+        if event.annotations[0].text == u'foo':
             # Step into the struct.
             event = reader.send(NEXT_EVENT)
             while event.event_type != IonEventType.CONTAINER_END:
-                if u'quantity' == event.field_name.text:
+                if event.field_name.text == u'quantity':
                     sum += event.value
                 event = reader.send(NEXT_EVENT)
-            # Step out of the struct.
-            event = reader.send(NEXT_EVENT)
         else:
             # Skip over the struct without parsing its values.
             event = reader.send(SKIP_EVENT)
             assert event.event_type == IonEventType.CONTAINER_END
-            # Position the reader at the start of the next value.
-            event = reader.send(NEXT_EVENT)
+        # Step out of the struct.
+        event = reader.send(NEXT_EVENT)
     assert 20 == sum
 
 
@@ -358,8 +363,9 @@ def get_csv_structs():
         mapping = (
             (u'id', int(tokens[0])),
             (u'type', tokens[1]),
-            (u'state', u'true' == tokens[2].strip())
+            (u'state', tokens[2].strip() == u'true'),
         )
+
         return dict(mapping)
 
     return [split_line(line) for line in lines]
@@ -369,11 +375,12 @@ def test_convert_csv_simpleion():
     # http://amzn.github.io/ion-docs/guides/cookbook.html#converting-non-hierarchical-data-to-ion
     structs = get_csv_structs()
     ion = simpleion.dumps(structs, sequence_as_stream=True)
-    assert ion == b'\xe0\x01\x00\xea\xee\x95\x81\x83\xde\x91\x87\xbe\x8e\x82id\x84type\x85state\xde\x8a\x8a!' \
-                  b'\x01\x8b\x83foo\x8c\x10\xde\x8a\x8a!\x02\x8b\x83bar\x8c\x11\xde\x8a\x8a!\x03\x8b\x83baz\x8c\x11' \
-           or \
-           ion == b'\xe0\x01\x00\xea\xee\x95\x81\x83\xde\x91\x87\xbe\x8e\x82id\x84type\x85state\xda\x8a!' \
-                  b'\x01\x8b\x83foo\x8c\x10\xda\x8a!\x02\x8b\x83bar\x8c\x11\xda\x8a!\x03\x8b\x83baz\x8c\x11'
+    assert ion in [
+        b'\xe0\x01\x00\xea\xee\x95\x81\x83\xde\x91\x87\xbe\x8e\x82id\x84type\x85state\xde\x8a\x8a!'
+        b'\x01\x8b\x83foo\x8c\x10\xde\x8a\x8a!\x02\x8b\x83bar\x8c\x11\xde\x8a\x8a!\x03\x8b\x83baz\x8c\x11',
+        b'\xe0\x01\x00\xea\xee\x95\x81\x83\xde\x91\x87\xbe\x8e\x82id\x84type\x85state\xda\x8a!'
+        b'\x01\x8b\x83foo\x8c\x10\xda\x8a!\x02\x8b\x83bar\x8c\x11\xda\x8a!\x03\x8b\x83baz\x8c\x11',
+    ]
 
 
 def test_convert_csv_events():

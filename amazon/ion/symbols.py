@@ -183,14 +183,13 @@ class SymbolTable(object):
                 for token in table:
                     if table_type.is_shared:
                         self.__add_shared(token)
-                    else:
-                        if not table.table_type.is_local \
+                    elif not table.table_type.is_local \
                                 or token.location is None \
                                 or token.location.name != TEXT_ION:
-                            # TODO Determine if this code should handle LST as import.
-                            # If the import is a local symbol table, we need to ignore system
-                            # imports.  This supports LST append.
-                            self.__add_import(token)
+                        # TODO Determine if this code should handle LST as import.
+                        # If the import is a local symbol table, we need to ignore system
+                        # imports.  This supports LST append.
+                        self.__add_import(token)
 
         # System symbols are bootstrapped
         if not table_type.is_system:
@@ -207,8 +206,7 @@ class SymbolTable(object):
     def __new_sid(self):
         """Allocates a new local SID."""
         self.max_id += 1
-        sid = self.max_id
-        return sid
+        return self.max_id
 
     def __add(self, token):
         """Unconditionally adds a token to the table."""
@@ -236,9 +234,7 @@ class SymbolTable(object):
         if text is not None and not isinstance(text, six.text_type):
             raise TypeError('Local symbol definition must be a Unicode sequence or None: %r' % text)
         sid = self.__new_sid()
-        location = None
-        if self.table_type.is_shared:
-            location = self.__import_location(sid)
+        location = self.__import_location(sid) if self.table_type.is_shared else None
         token = SymbolToken(text, sid, location)
         self.__add(token)
         return token
@@ -313,7 +309,7 @@ class SymbolTable(object):
         """
         token = self.get(key)
         if token is None:
-            raise KeyError('No symbol for: %s' % key)
+            raise KeyError(f'No symbol for: {key}')
         return token
 
     def __len__(self):
@@ -360,11 +356,10 @@ class SymbolTable(object):
         other_iter = getattr(other, '__iter__')
         if not callable(other_iter):
             return False
-        for token, other_token in six.moves.zip_longest(self, other):
-            if token != other_token:
-                return False
-
-        return True
+        return all(
+            token == other_token
+            for token, other_token in six.moves.zip_longest(self, other)
+        )
 
     def __ne__(self, other):
         return not self == other
@@ -430,9 +425,9 @@ def placeholder_symbol_table(name, version, max_id):
         SymbolTable: The synthesized table.
     """
     if version <= 0:
-        raise ValueError('Version must be grater than or equal to 1: %s' % version)
+        raise ValueError(f'Version must be grater than or equal to 1: {version}')
     if max_id < 0:
-        raise ValueError('Max ID must be zero or positive: %s' % max_id)
+        raise ValueError(f'Max ID must be zero or positive: {max_id}')
 
     return SymbolTable(
         table_type=SHARED_TABLE_TYPE,
@@ -462,9 +457,9 @@ def substitute_symbol_table(table, version, max_id):
     if not table.table_type.is_shared:
         raise ValueError('Symbol table to substitute from must be a shared table')
     if version <= 0:
-        raise ValueError('Version must be grater than or equal to 1: %s' % version)
+        raise ValueError(f'Version must be grater than or equal to 1: {version}')
     if max_id < 0:
-        raise ValueError('Max ID must be zero or positive: %s' % max_id)
+        raise ValueError(f'Max ID must be zero or positive: {max_id}')
 
     # TODO Recycle the symbol tokens from the source table into the substitute.
     if max_id <= table.max_id:
@@ -534,23 +529,19 @@ class SymbolTableCatalog(object):
         if not isinstance(version, int):
             raise TypeError('Version must be an int: %r' % version)
         if version <= 0:
-            raise ValueError('Version must be positive: %s' % version)
+            raise ValueError(f'Version must be positive: {version}')
         if max_id is not None and max_id < 0:
-            raise ValueError('Max ID must be zero or positive: %s' % max_id)
+            raise ValueError(f'Max ID must be zero or positive: {max_id}')
 
         versions = self.__tables.get(name)
         if versions is None:
             if max_id is None:
-                raise CannotSubstituteTable(
-                    'Found no table for %s, but no max_id' % name
-                )
+                raise CannotSubstituteTable(f'Found no table for {name}, but no max_id')
             return placeholder_symbol_table(name, version, max_id)
 
         table = versions.get(version)
         if table is None:
-            # TODO Replace the keys map with a search tree based dictionary.
-            keys = list(versions)
-            keys.sort()
+            keys = sorted(versions)
             table = versions[keys[-1]]
 
         if table.version == version and (max_id is None or table.max_id == max_id):

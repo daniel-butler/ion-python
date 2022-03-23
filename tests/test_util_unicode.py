@@ -25,7 +25,7 @@ from amazon.ion.util import record, unicode_iter
 
 
 def _unichr_list(val):
-    return list(ord(x) for x in val)
+    return [ord(x) for x in val]
 
 
 class _P(record('desc', 'input', 'expected')):

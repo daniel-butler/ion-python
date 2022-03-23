@@ -123,7 +123,7 @@ def test_drain_with_active_container_fails():
     buf.start_container()
     buf.add_scalar_value(b'1')
     with raises(ValueError):
-        for partial in buf.drain():
+        for _ in buf.drain():
             pass
 
 

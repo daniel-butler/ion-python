@@ -188,9 +188,7 @@ _FROM_TYPE = dict(chain(
 ))
 
 _FROM_TYPE_TUPLE_AS_SEXP = dict(_FROM_TYPE)
-_FROM_TYPE_TUPLE_AS_SEXP.update({
-    tuple: IonType.SEXP
-})
+_FROM_TYPE_TUPLE_AS_SEXP[tuple] = IonType.SEXP
 
 
 def _ion_type(obj, from_type):
@@ -219,10 +217,22 @@ def _dump(obj, writer, from_type, field=None, in_struct=False, depth=0):
     if ion_type is None:
         raise IonException('Value must have a non-None ion_type: %s, depth: %d, field: %s' % (repr(obj), depth, field))
     if not null and ion_type.is_container:
-        if ion_nature:
-            event = obj.to_event(IonEventType.CONTAINER_START, field_name=field, in_struct=in_struct, depth=depth)
-        else:
-            event = IonEvent(IonEventType.CONTAINER_START, ion_type, field_name=field, depth=depth)
+        event = (
+            obj.to_event(
+                IonEventType.CONTAINER_START,
+                field_name=field,
+                in_struct=in_struct,
+                depth=depth,
+            )
+            if ion_nature
+            else IonEvent(
+                IonEventType.CONTAINER_START,
+                ion_type,
+                field_name=field,
+                depth=depth,
+            )
+        )
+
         writer.send(event)
         if ion_type is IonType.STRUCT:
             for field, val in six.iteritems(obj):
@@ -231,12 +241,10 @@ def _dump(obj, writer, from_type, field=None, in_struct=False, depth=0):
             for elem in obj:
                 _dump(elem, writer, from_type, depth=depth+1)
         event = _ION_CONTAINER_END_EVENT
+    elif ion_nature:
+        event = obj.to_event(IonEventType.SCALAR, field_name=field, in_struct=in_struct, depth=depth)
     else:
-        # obj is a scalar value
-        if ion_nature:
-            event = obj.to_event(IonEventType.SCALAR, field_name=field, in_struct=in_struct, depth=depth)
-        else:
-            event = IonEvent(IonEventType.SCALAR, ion_type, obj, field_name=field, depth=depth)
+        event = IonEvent(IonEventType.SCALAR, ion_type, obj, field_name=field, depth=depth)
     writer.send(event)
 
 
@@ -368,10 +376,7 @@ def load_python(fp, catalog=None, single_value=True, encoding='utf-8', cls=None,
     else:
         maybe_ivm = fp.read(4)
         fp.seek(0)
-        if maybe_ivm == _IVM:
-            raw_reader = binary_reader()
-        else:
-            raw_reader = text_reader()
+        raw_reader = binary_reader() if maybe_ivm == _IVM else text_reader()
     reader = blocking_reader(managed_reader(raw_reader, catalog), fp)
     if parse_eagerly:
         out = []  # top-level
@@ -380,7 +385,6 @@ def load_python(fp, catalog=None, single_value=True, encoding='utf-8', cls=None,
             if len(out) != 1:
                 raise IonException('Stream contained %d values; expected a single value.' % (len(out),))
             return out[0]
-        return out
     else:
         out = _load_iteratively(reader)
         if single_value:
@@ -390,7 +394,8 @@ def load_python(fp, catalog=None, single_value=True, encoding='utf-8', cls=None,
                 raise IonException('Stream contained more than 1 values; expected a single value.')
             except StopIteration:
                 return result
-        return out
+
+    return out
 
 
 _FROM_ION_TYPE = [
@@ -418,11 +423,14 @@ def _load_iteratively(reader, end_type=IonEventType.STREAM_END):
             _load(container, reader, IonEventType.CONTAINER_END, ion_type is IonType.STRUCT)
             yield container
         elif event.event_type is IonEventType.SCALAR:
-            if event.value is None or ion_type is IonType.NULL or ion_type.is_container:
-                scalar = IonPyNull.from_event(event)
-            else:
-                scalar = _FROM_ION_TYPE[ion_type].from_event(event)
-            yield scalar
+            yield IonPyNull.from_event(
+                event
+            ) if event.value is None or ion_type is IonType.NULL or ion_type.is_container else _FROM_ION_TYPE[
+                ion_type
+            ].from_event(
+                event
+            )
+
         event = reader.send(NEXT_EVENT)
 
 def _load(out, reader, end_type=IonEventType.STREAM_END, in_struct=False):

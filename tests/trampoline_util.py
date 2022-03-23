@@ -47,8 +47,7 @@ def yields_iter(*seq):
     and the like don't support ``send()``.
     """
     yield
-    for val in seq:
-        yield val
+    yield from seq
 
 
 class TrampolineParameters(record('desc', 'coroutine', 'input', 'expected')):

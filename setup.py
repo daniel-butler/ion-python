@@ -21,7 +21,7 @@ import sys
 from setuptools import setup, find_packages, Extension
 from install import _install_ionc
 
-C_EXT = True if not hasattr(sys, 'pypy_translation_info') else False
+C_EXT = not hasattr(sys, 'pypy_translation_info')
 
 
 def run_setup():
@@ -32,20 +32,24 @@ def run_setup():
                 Extension(
                     'amazon.ion.ionc',
                     sources=['amazon/ion/ioncmodule.c'],
-                    include_dirs=['amazon/ion/ion-c-build/include',
-                                  'amazon/ion/ion-c-build/include/ionc',
-                                  'amazon/ion/ion-c-build/include/decNumber'],
+                    include_dirs=[
+                        'amazon/ion/ion-c-build/include',
+                        'amazon/ion/ion-c-build/include/ionc',
+                        'amazon/ion/ion-c-build/include/decNumber',
+                    ],
                     libraries=['ionc', 'decNumber'],
                     library_dirs=['amazon/ion/ion-c-build/lib'],
-                    extra_link_args=['-Wl,-rpath,%s' % '$ORIGIN/ion-c-build/lib',  # LINUX
-                                     '-Wl,-rpath,%s' % '@loader_path/ion-c-build/lib'  # MAC
-                                     ],
-                ),
-            ],
+                    extra_link_args=[
+                        '-Wl,-rpath,$ORIGIN/ion-c-build/lib',
+                        '-Wl,-rpath,@loader_path/ion-c-build/lib',
+                    ],
+                )
+            ]
         )
+
     else:
         print('Using pure python implementation.')
-        kw = dict()
+        kw = {}
 
 
     setup(

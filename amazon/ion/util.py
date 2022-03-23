@@ -95,7 +95,7 @@ class Enum(int):
         return (self.name, self.value)
 
     def __str__(self):
-        return '<%s.%s: %s>' % (type(self).__name__, self.name, self.value)
+        return f'<{type(self).__name__}.{self.name}: {self.value}>'
     __repr__ = __str__
 
 
@@ -119,14 +119,14 @@ class _RecordMetaClass(type):
                 for field in field_declarations:
                     if isinstance(field, str):
                         if has_defaults:
-                            raise ValueError('Non-defaulted record field must have default: %s' % field)
+                            raise ValueError(f'Non-defaulted record field must have default: {field}')
                         names.append(field)
                     elif isinstance(field, tuple) and len(field) == 2:
                         names.append(field[0])
                         defaults.append(field[1])
                         has_defaults = True
                     else:
-                        raise ValueError('Unable to bind record field: %s' % (field,))
+                        raise ValueError(f'Unable to bind record field: {field}')
 
                 # Construct actual base type/defaults.
                 base_class = namedtuple(name, names)
@@ -294,9 +294,7 @@ def _next_code_point(val, val_iter, yield_char=False, to_int=lambda x: x):
 
 if sys.version_info < (2, 7):
     def bit_length(value):
-        if value == 0:
-            return 0
-        return len(bin(abs(value))) - 2
+        return 0 if value == 0 else len(bin(abs(value))) - 2
 
     def total_seconds(td):
         return (td.microseconds + (td.seconds + td.days * 24 * 3600) * 10 ** 6) / 10 ** 6

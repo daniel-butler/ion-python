@@ -61,10 +61,7 @@ _NULL_TYPE_NAMES = [
 
 
 def _serialize_bool(ion_event):
-    if ion_event.value:
-        return b'true'
-    else:
-        return b'false'
+    return b'true' if ion_event.value else b'false'
 
 
 def _serialize_scalar_from_string_representation_factory(type_name, types, str_func=str):
@@ -99,10 +96,7 @@ def _float_str(val):
     if math.isnan(val):
         return 'nan'
     if math.isinf(val):
-        if val > 0:
-            return '+inf'
-        else:
-            return '-inf'
+        return '+inf' if val > 0 else '-inf'
     text = repr(val)
     if _EXPONENT_PAT.search(text) is None:
         text += 'e0'
@@ -118,7 +112,7 @@ _serialize_float = _serialize_scalar_from_string_representation_factory(
 def _decimal_str(val):
     text = str(val)
     new_text = _EXPONENT_PAT.sub('d', text)
-    if text == new_text and text.find('.') == -1:
+    if text == new_text and '.' not in text:
         new_text += 'd0'
     return new_text
 
@@ -136,7 +130,7 @@ def _bytes_utc_offset(dt):
     elif offset == _ZERO_DELTA:
         return 'Z'
     offset_str = dt.strftime('%z')
-    offset_str = offset_str[:3] + ':' + offset_str[3:]
+    offset_str = f'{offset_str[:3]}:{offset_str[3:]}'
     return offset_str
 
 
@@ -156,12 +150,12 @@ def _bytes_datetime(dt):
     if precision.includes_month:
         tz_string += dt.strftime('-%m')
     else:
-        return tz_string + 'T'
+        return f'{tz_string}T'
 
     if precision.includes_day:
         tz_string += dt.strftime('-%dT')
     else:
-        return tz_string + 'T'
+        return f'{tz_string}T'
 
     if precision.includes_minute:
         tz_string += dt.strftime('%H:%M')
@@ -177,7 +171,7 @@ def _bytes_datetime(dt):
         fractional_seconds = getattr(original_dt, TIMESTAMP_FRACTIONAL_SECONDS_FIELD, None)
         if fractional_seconds is not None:
             _, digits, exponent = fractional_seconds.as_tuple()
-            if not (fractional_seconds == DECIMAL_ZERO and exponent >= 0):
+            if fractional_seconds != DECIMAL_ZERO or exponent < 0:
                 leading_zeroes = -exponent - len(digits)
                 tz_string += '.'
                 if leading_zeroes > 0:
@@ -247,7 +241,7 @@ _SINGLE_QUOTE = b"'"
 _DOUBLE_QUOTE = b'"'
 # all typed nulls (such as null.int) and the +inf, and -inf keywords are covered by this regex
 _UNQUOTED_SYMBOL_REGEX = re.compile(r'\A[a-zA-Z$_][a-zA-Z0-9$_]*\Z')
-_ADDITIONAL_SYMBOLS_REQUIRING_QUOTES = set(['nan', 'null', 'false', 'true'])
+_ADDITIONAL_SYMBOLS_REQUIRING_QUOTES = {'nan', 'null', 'false', 'true'}
 
 def _symbol_needs_quotes(text):
     return text in _ADDITIONAL_SYMBOLS_REQUIRING_QUOTES or _UNQUOTED_SYMBOL_REGEX.search(text) is None
@@ -385,7 +379,11 @@ def _raw_writer_coroutine(depth=0, container_event=None, whence=None, indent=Non
             if len(delimiter) > 0:
                 yield partial_transition(delimiter, self)
 
-        if pretty and (has_written_values or container_event is not None) and not ion_event.event_type is IonEventType.STREAM_END:
+        if (
+            pretty
+            and ((has_written_values or container_event is not None))
+            and ion_event.event_type is not IonEventType.STREAM_END
+        ):
             yield partial_transition(b'\n', self)
             indent_depth = depth - (1 if ion_event.event_type is IonEventType.CONTAINER_END else 0)
             if indent_depth > 0:
@@ -417,17 +415,15 @@ def _raw_writer_coroutine(depth=0, container_event=None, whence=None, indent=Non
             elif ion_event.event_type is IonEventType.SCALAR:
                 writer_event = DataEvent(WriteEventType.COMPLETE, _serialize_scalar(ion_event))
             else:
-                raise TypeError('Invalid event: %s' % ion_event)
+                raise TypeError(f'Invalid event: {ion_event}')
+        elif ion_event.event_type is IonEventType.SCALAR:
+            writer_event = DataEvent(WriteEventType.NEEDS_INPUT, _serialize_scalar(ion_event))
+        elif ion_event.event_type is IonEventType.CONTAINER_END:
+            write_type = WriteEventType.COMPLETE if depth == 1 else WriteEventType.NEEDS_INPUT
+            writer_event = DataEvent(write_type, _serialize_container_end(container_event))
+            delegate = whence
         else:
-            # Serialize within a container.
-            if ion_event.event_type is IonEventType.SCALAR:
-                writer_event = DataEvent(WriteEventType.NEEDS_INPUT, _serialize_scalar(ion_event))
-            elif ion_event.event_type is IonEventType.CONTAINER_END:
-                write_type = WriteEventType.COMPLETE if depth == 1 else WriteEventType.NEEDS_INPUT
-                writer_event = DataEvent(write_type, _serialize_container_end(container_event))
-                delegate = whence
-            else:
-                raise TypeError('Invalid event: %s' % ion_event)
+            raise TypeError(f'Invalid event: {ion_event}')
 
         has_written_values = True
         transition = Transition(writer_event, delegate)

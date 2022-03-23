@@ -154,7 +154,7 @@ class _ImportDesc(object):
         self.max_id = max_id
 
     def __str__(self):
-        return '_ImportDesc(%s, %s, %s)' % (self.name, self.version, self.max_id)
+        return f'_ImportDesc({self.name}, {self.version}, {self.max_id})'
 
 
 @coroutine
@@ -243,13 +243,7 @@ def _local_symbol_table_handler(ctx):
         elif ion_type == IonType.SYMBOL \
                 and field_name == TEXT_IMPORTS \
                 and ctx.resolve(ion_event.value).text == TEXT_ION_SYMBOL_TABLE:
-            if ctx.symbol_table.table_type.is_system:
-                # Force the imports to nothing (system tables import implicitly).
-                imports = None
-            else:
-                # Set the imports to the previous local symbol table.
-                imports = [ctx.symbol_table]
-
+            imports = None if ctx.symbol_table.table_type.is_system else [ctx.symbol_table]
         ion_event, _ = yield trans
 
     # Construct the resulting context and terminate the processing.
@@ -301,7 +295,7 @@ def managed_reader(reader, catalog=None):
                 if depth == 0:
                     if event_type is IonEventType.VERSION_MARKER:
                         if ion_event != ION_VERSION_MARKER_EVENT:
-                            raise IonException('Invalid IVM: %s' % (ion_event,))
+                            raise IonException(f'Invalid IVM: {ion_event}')
 
                         # Reset and swallow IVM
                         ctx = _ManagedContext(ctx.catalog)

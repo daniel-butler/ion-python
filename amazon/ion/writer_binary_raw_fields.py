@@ -95,7 +95,7 @@ def _write_signed(buf, value, cached_func, uncached_func):
 def _write_signed_uncached(buf, value, sign_bit_mask, bits_per_octet, end_bit=0):
     magnitude = value
     sign_bit = 0
-    if value < 0:
+    if magnitude < 0:
         magnitude = -magnitude
         sign_bit = sign_bit_mask
     return _write_base(buf, magnitude, bits_per_octet, end_bit, sign_bit, is_signed=True)

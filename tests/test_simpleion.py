@@ -208,7 +208,7 @@ def generate_scalars_binary(scalars_map, preceding_symbols=0):
                 # All six.binary_type are treated as BLOBs unless wrapped by an _IonNature
                 tid = six.byte2int(expected) + 0x10  # increment upper nibble for clob -> blob; keep lower nibble
                 native_expected = bytearray([tid]) + expected[1:]
-            elif ion_type is IonType.SYMBOL and native is not None:
+            elif ion_type is IonType.SYMBOL:
                 has_symbols = True
             elif ion_type is IonType.STRING:
                 # Encode all strings as symbols too.
@@ -218,9 +218,20 @@ def generate_scalars_binary(scalars_map, preceding_symbols=0):
                 else:
                     symbol_expected = _serialize_symbol(
                         IonEvent(IonEventType.SCALAR, IonType.SYMBOL, SymbolToken(None, 10 + preceding_symbols)))
-                yield _Parameter(IonType.SYMBOL.name + ' ' + native,
-                                 IonPyText.from_value(IonType.SYMBOL, native), symbol_expected, True)
-            yield _Parameter('%s %s' % (ion_type.name, native), native, native_expected, has_symbols)
+                yield _Parameter(
+                    f'{IonType.SYMBOL.name} {native}',
+                    IonPyText.from_value(IonType.SYMBOL, native),
+                    symbol_expected,
+                    True,
+                )
+
+            yield _Parameter(
+                f'{ion_type.name} {native}',
+                native,
+                native_expected,
+                has_symbols,
+            )
+
             wrapper = _FROM_ION_TYPE[ion_type].from_value(ion_type, native)
             yield _Parameter(repr(wrapper), wrapper, expected, has_symbols)
 
@@ -294,11 +305,11 @@ def generate_annotated_values_binary(scalars_map, container_map):
             final_expected += (exp, )
 
         yield _Parameter(
-            desc='ANNOTATED %s' % value_p.desc,
+            desc=f'ANNOTATED {value_p.desc}',
             obj=obj,
             expected=final_expected,
             has_symbols=True,
-            stream=value_p.stream
+            stream=value_p.stream,
         )
 
 
@@ -331,18 +342,17 @@ def _dump_load_run(p, dumps_func, loads_func, binary):
         expecteds = (p.expected,)
     write_success = False
     for expected in expecteds:
-        if not p.has_symbols:
-            if binary:
-                write_success = (_IVM + expected) == res or expected == res
-            else:
-                write_success = (b'$ion_1_0 ' + expected) == res or expected == res
-        else:
+        if p.has_symbols:
             # The payload contains a LST. The value comes last, so compare the end bytes.
             write_success = expected == res[len(res) - len(expected):]
+        elif binary:
+            write_success = (_IVM + expected) == res or expected == res
+        else:
+            write_success = (b'$ion_1_0 ' + expected) == res or expected == res
         if write_success:
             break
     if not write_success:
-        raise AssertionError('Expected: %s , found %s' % (expecteds, res))
+        raise AssertionError(f'Expected: {expecteds} , found {res}')
     # test load
     res = loads_func(res, single_value=(not p.stream))
     _assert_symbol_aware_ion_equals(p.obj, res)
@@ -393,12 +403,18 @@ def generate_scalars_text(scalars_map):
             elif ion_type is IonType.CLOB:
                 # All six.binary_type are treated as BLOBs unless wrapped by an _IonNature
                 native = _FROM_ION_TYPE[ion_type].from_value(ion_type, native)
-            elif ion_type is IonType.SYMBOL and native is not None:
+            elif ion_type is IonType.SYMBOL:
                 has_symbols = True
                 if not isinstance(native, SymbolToken):
                     native = _st(native)
-            yield _Parameter('%s %s' % (ion_type.name, native), native, native_expected, has_symbols)
-            if not (ion_type is IonType.CLOB):
+            yield _Parameter(
+                f'{ion_type.name} {native}',
+                native,
+                native_expected,
+                has_symbols,
+            )
+
+            if ion_type is not IonType.CLOB:
                 # Clobs were already wrapped.
                 wrapper = _FROM_ION_TYPE[ion_type].from_value(ion_type, native)
                 yield _Parameter(repr(wrapper), wrapper, expected, has_symbols)
@@ -440,11 +456,11 @@ def generate_annotated_values_text(scalars_map, container_map):
             annotated_expected += (b"annot1::annot2::" + value_p.expected,)
 
         yield _Parameter(
-            desc='ANNOTATED %s' % value_p.desc,
+            desc=f'ANNOTATED {value_p.desc}',
             obj=obj,
             expected=annotated_expected,
             has_symbols=True,
-            stream=value_p.stream
+            stream=value_p.stream,
         )
 
 
@@ -584,15 +600,11 @@ def _assert_roundtrip(before, after, tuple_as_sexp):
             ion_type = _ion_type(out, from_type)
             out = _FROM_ION_TYPE[ion_type].from_value(ion_type, out)
         if isinstance(out, dict):
-            update = {}
-            for field, value in six.iteritems(out):
-                update[field] = _to_ion_nature(value)
+            update = {field: _to_ion_nature(value) for field, value in six.iteritems(out)}
             update = IonPyDict.from_value(out.ion_type, update, out.ion_annotations)
             out = update
         elif isinstance(out, list):
-            update = []
-            for value in out:
-                update.append(_to_ion_nature(value))
+            update = [_to_ion_nature(value) for value in out]
             update = IonPyList.from_value(out.ion_type, update, out.ion_annotations)
             out = update
 

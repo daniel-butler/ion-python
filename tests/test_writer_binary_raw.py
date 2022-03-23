@@ -180,11 +180,11 @@ _generate_simple_containers = partial(generate_containers, _SIMPLE_CONTAINER_MAP
 
 
 def _generate_annotated_values():
+    annot_length = 2  # 10 and 11 each fit in one VarUInt byte
+    annot_length_length = 1  # 2 fits in one VarUInt byte
     for value_p in chain(_generate_simple_scalars(), _generate_simple_containers()):
         events = (value_p.events[0].derive_annotations(
             [SymbolToken(None, 10), SymbolToken(None, 11)]),) + value_p.events[1:]
-        annot_length = 2  # 10 and 11 each fit in one VarUInt byte
-        annot_length_length = 1  # 2 fits in one VarUInt byte
         final_expected = ()
         if isinstance(value_p.expected, (list, tuple)):
             expecteds = value_p.expected
@@ -206,7 +206,7 @@ def _generate_annotated_values():
             final_expected += (exp, )
 
         yield _P(
-            desc='ANN %s' % value_p.desc,
+            desc=f'ANN {value_p.desc}',
             events=events + (_E(_ET.STREAM_END),),
             expected=final_expected,
         )
