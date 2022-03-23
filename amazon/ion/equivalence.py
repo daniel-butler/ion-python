@@ -121,10 +121,7 @@ def _sequences_eq(a, b, comparison_func):
     sequence_len = len(a)
     if sequence_len != len(b):
         return False
-    for i in range(sequence_len):
-        if not comparison_func(a[i], b[i]):
-            return False
-    return True
+    return all(comparison_func(a[i], b[i]) for i in range(sequence_len))
 
 
 def _structs_eq(a, b, comparison_func):
@@ -151,9 +148,8 @@ def _structs_eq(a, b, comparison_func):
                 for value_a in values_a:
                     if not any(comparison_func(value_a, value_b) for value_b in values_b):
                         return False
-            else:
-                if not comparison_func(a[key], b[key]):
-                    return False
+            elif not comparison_func(a[key], b[key]):
+                return False
 
     return True
 
@@ -211,15 +207,15 @@ def _symbols_eq(a, b):
             b_location = getattr(b, 'location', None)
             if (a_location is None) ^ (b_location is None):
                 return False
-            if a_location is not None:
-                # Both were imported from shared symbol tables. In this case, they are only equivalent if they were
-                # imported from the same position in the same shared symbol table.
-                if (a_location.name != b_location.name) or (a_location.position != b_location.position):
-                    return False
+            if a_location is not None and (
+                (a_location.name != b_location.name)
+                or (a_location.position != b_location.position)
+            ):
+                return False
             a_sid = getattr(a, 'sid', None)
             b_sid = getattr(b, 'sid', None)
             if a_sid is None or b_sid is None:
-                raise ValueError('Attempted to compare malformed symbols %s, %s.' % (a, b))
+                raise ValueError(f'Attempted to compare malformed symbols {a}, {b}.')
             if (a_sid == 0) ^ (b_sid == 0):
                 # SID 0 is only equal to SID 0.
                 return False
@@ -231,10 +227,9 @@ def _decimals_eq(a, b):
     assert isinstance(a, Decimal)
     if not isinstance(b, Decimal):
         return False
-    if a.is_zero() and b.is_zero():
-        if a.is_signed() ^ b.is_signed():
-            # Negative-zero is not equivalent to positive-zero.
-            return False
+    if a.is_zero() and b.is_zero() and a.is_signed() ^ b.is_signed():
+        # Negative-zero is not equivalent to positive-zero.
+        return False
     # This ensures that both have equal precision.
     return a.canonical().compare_total(b.canonical()) == 0
 

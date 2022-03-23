@@ -95,11 +95,7 @@ def _generate_annotated_values():
         for expected in expecteds:
             final_expected = _SIMPLE_ANNOTATIONS_ENCODED + expected
             final_expecteds += (final_expected, )
-        yield _P(
-            desc='ANN %s' % value_p.desc,
-            events=events,
-            expected=final_expecteds,
-        )
+        yield _P(desc=f'ANN {value_p.desc}', events=events, expected=final_expecteds)
 
 
 _SIMPLE_FIELD_NAME = u'field'
@@ -120,7 +116,7 @@ def _generate_simple_containers(*generators, **opts):
             if start_event.ion_type is _IT.STRUCT:
                 field_names = (_SIMPLE_FIELD_NAME, _TOKEN_FIELD_NAME)
             for field_name in field_names:
-                b_start = empty_p.expected[0:1]
+                b_start = empty_p.expected[:1]
                 b_end = empty_p.expected[-1:]
 
                 value_event = value_p.events[0]
@@ -288,13 +284,13 @@ def test_quote_symbols(p):
     symbol_text, needs_quotes, backslash_required = p
 
     try:
-        loads(symbol_text + '::4')
+        loads(f'{symbol_text}::4')
         threw_without_quotes = False
     except IonException as e:
         threw_without_quotes = True
 
     quoted_symbol_text = "'" + ('\\' if backslash_required else '') + symbol_text + "'"
-    ion_value = loads(quoted_symbol_text + "::4")
+    ion_value = loads(f'{quoted_symbol_text}::4')
     quoted = "'" in dumps(ion_value, binary=False)
 
     assert needs_quotes == threw_without_quotes

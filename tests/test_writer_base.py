@@ -135,7 +135,7 @@ def test_trampoline(p):
 def test_blocking_writer(p):
     buf = BytesIO()
     writer = blocking_writer(p.coroutine, buf)
-    for i in range(p.input):
+    for _ in range(p.input):
         result_type = writer.send(None)
         assert isinstance(result_type, WriteEventType) and result_type is not WriteEventType.HAS_PENDING
     assert p.expected == buf.getvalue()

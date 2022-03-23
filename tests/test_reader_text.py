@@ -895,7 +895,7 @@ def _scalar_event_pairs(data, events, info):
     """
     first = True
     delimiter, in_container = info
-    space_delimited = not (b',' in delimiter)
+    space_delimited = b',' not in delimiter
     for event in events:
         input_event = NEXT
         if first:
@@ -1057,7 +1057,7 @@ def _generate_annotations():
     i = 1
     num_symbols = len(_TEST_SYMBOLS[0])
     while True:
-        yield _TEST_SYMBOLS[0][0:i], _TEST_SYMBOLS[1][0:i]
+        yield (_TEST_SYMBOLS[0][:i], _TEST_SYMBOLS[1][:i])
         i += 1
         if i == num_symbols:
             i = 0
@@ -1191,8 +1191,9 @@ def _expect_event(expected_event, data, events, delimiter):
     """
     events += (expected_event,)
     outputs = events[1:]
-    event_pairs = [(e_read(data + delimiter), events[0])] + list(zip([NEXT] * len(outputs), outputs))
-    return event_pairs
+    return [(e_read(data + delimiter), events[0])] + list(
+        zip([NEXT] * len(outputs), outputs)
+    )
 
 
 @coroutine
@@ -1203,8 +1204,7 @@ def _basic_params(event_func, desc, delimiter, data_event_pairs, is_delegate=Fal
     while True:
         yield
         params = list(zip(*list(value_iter(event_func, data_event_pairs, delimiter))))[1]
-        for param in _paired_params(params, desc, top_level):
-            yield param
+        yield from _paired_params(params, desc, top_level)
         if not is_delegate:
             break
 
@@ -1216,9 +1216,9 @@ def _paired_params(params, desc, top_level=True):
         if top_level:
             event_pairs = [(NEXT, END)] + event_pairs
         yield _P(
-            desc='%s %s' % (desc, data),
+            desc=f'{desc} {data}',
             event_pairs=event_pairs,
-            is_unicode=isinstance(data, six.text_type)
+            is_unicode=isinstance(data, six.text_type),
         )
 
 

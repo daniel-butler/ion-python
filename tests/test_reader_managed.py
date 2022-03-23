@@ -346,10 +346,10 @@ def _create_lst_params(
     ]
     for param in params:
         yield _P(
-            desc='LST - ' + prefix_desc + ' - ' + param.desc,
+            desc=f'LST - {prefix_desc} - {param.desc}',
             catalog=_test_catalog(),
-            inner= prefix_pairs + param.inner,
-            outer=param.outer
+            inner=prefix_pairs + param.inner,
+            outer=param.outer,
         )
 
 

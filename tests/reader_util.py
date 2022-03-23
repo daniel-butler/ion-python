@@ -79,8 +79,7 @@ def all_top_level_as_one_stream_params(iterator, *args):
     def generate_event_pairs():
         yield (NEXT, END)
         for data, event_pairs in iterator(*args):
-            for event_pair in event_pairs:
-                yield event_pair
+            yield from event_pairs
             yield (NEXT, END)
 
     yield ReaderParameter(

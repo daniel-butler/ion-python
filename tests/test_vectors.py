@@ -193,13 +193,13 @@ class _Parameter:
         while True:
             firsts, last = split(file_path)
             shortened_path = last if first else join(last, shortened_path)
-            if last == u'good' or last == u'bad':
+            if last in [u'good', u'bad']:
                 break
             file_path = firsts
             first = False
         self.file_path = shortened_path
         self.test_thunk = test_thunk
-        self.desc = '%s - %s %s' % (vector_type.name, shortened_path, desc)
+        self.desc = f'{vector_type.name} - {shortened_path} {desc}'
 
     def __str__(self):
         return self.desc
@@ -211,10 +211,13 @@ _T = _VectorType
 def _list_files(directory_path):
     for file in listdir(directory_path):
         file_path = join(directory_path, file)
-        if _DEBUG_WHITELIST:
-            if file_path in _DEBUG_WHITELIST:
-                yield file_path
-        elif isfile(file_path) and file_path not in _SKIP_LIST:
+        if (
+            _DEBUG_WHITELIST
+            and file_path in _DEBUG_WHITELIST
+            or not _DEBUG_WHITELIST
+            and isfile(file_path)
+            and file_path not in _SKIP_LIST
+        ):
             yield file_path
 
 
@@ -333,8 +336,7 @@ def _roundtrip(value, is_binary):
     out = BytesIO()
     dump(value, out, binary=is_binary)
     out.seek(0)
-    roundtripped = load(out)
-    return roundtripped
+    return load(out)
 
 
 def _roundtrip_thunk(value, is_binary):
@@ -354,8 +356,7 @@ def _comparison_params(vector_type, directory_path):
         with _open(file) as vector:
             sequences = load(vector, single_value=False)
         for sequence in sequences:
-            for param in vector_type.comparison_param_generator(file, sequence):
-                yield param
+            yield from vector_type.comparison_param_generator(file, sequence)
 
 
 @parametrize(*chain(

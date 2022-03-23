@@ -47,10 +47,7 @@ def read_byte(ch):
 def unread(data):
     def action(queue):
         queue.unread(data)
-        if isinstance(data, int):
-            unread_len = 1
-        else:
-            unread_len = len(data)
+        unread_len = 1 if isinstance(data, int) else len(data)
         return unread_len, -unread_len
 
     return action

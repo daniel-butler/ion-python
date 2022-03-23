@@ -56,13 +56,21 @@ def _timestamp_from_kwargs(**kwargs):
 
 
 def _timestamp_from_positional_microsecond(**kwargs):
-    if TIMESTAMP_MICROSECOND_FIELD in kwargs:
-        microsecond = kwargs[TIMESTAMP_MICROSECOND_FIELD]
-        del kwargs[TIMESTAMP_MICROSECOND_FIELD]
-        return '(%s, %s)' % (microsecond, str(kwargs)), \
-               Timestamp(2011, 1, 1, 0, 0, 0, microsecond, precision=TimestampPrecision.SECOND, **kwargs)
-    else:
+    if TIMESTAMP_MICROSECOND_FIELD not in kwargs:
         return _timestamp_from_kwargs(**kwargs)
+    microsecond = kwargs[TIMESTAMP_MICROSECOND_FIELD]
+    del kwargs[TIMESTAMP_MICROSECOND_FIELD]
+    return f'({microsecond}, {str(kwargs)})', Timestamp(
+        2011,
+        1,
+        1,
+        0,
+        0,
+        0,
+        microsecond,
+        precision=TimestampPrecision.SECOND,
+        **kwargs,
+    )
 
 
 def _constructor_args(**kwargs):

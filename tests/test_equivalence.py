@@ -272,8 +272,9 @@ _P = _Parameter
 def _desc(a, b, operator):
     def _str(val):
         if isinstance(val, _IonNature):
-            return '%s(%s, ion_type=%s, ion_annotations=%s)' % (type(val), val, val.ion_type, val.ion_annotations)
-        return '%s(%s)' % (type(val), val)
+            return f'{type(val)}({val}, ion_type={val.ion_type}, ion_annotations={val.ion_annotations})'
+
+        return f'{type(val)}({val})'
     return 'assert %s %s %s' % (_str(a), operator, _str(b))
 
 
@@ -352,10 +353,7 @@ def _generate_nonequivs(nonequivs):
 
 
 def list_from(equivs, equiv_set_index):
-    output = []
-    for equiv_set in equivs:
-        output.append(equiv_set[equiv_set_index])
-    return output
+    return [equiv_set[equiv_set_index] for equiv_set in equivs]
 
 
 def _generate_equiv_lists(equivs, type_func):

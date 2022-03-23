@@ -52,7 +52,7 @@ def partial_transition(data, delegate):
 
 def validate_scalar_value(value, expected_types):
     if not isinstance(value, expected_types):
-        raise TypeError('Expected type %s, found %s.' % (expected_types, type(value)))
+        raise TypeError(f'Expected type {expected_types}, found {type(value)}.')
 
 
 # To be used when an event of type IonType.NULL is encountered, but its value is not None.
@@ -71,7 +71,7 @@ def serialize_scalar(ion_event, jump_table, null_table):
     if ion_event.value is None:
         return _serialize_null(ion_event, null_table)
     if ion_type.is_container:
-        raise TypeError('Expected scalar type in event: %s' % (ion_event,))
+        raise TypeError(f'Expected scalar type in event: {ion_event}')
     return jump_table[ion_type](ion_event)
 
 

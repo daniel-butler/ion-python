@@ -35,7 +35,7 @@ def in_and_out_params(in_types, out_types):
         (_P(t, True) for t in in_types)
     ))
 
-_IN_TYPES = set([IonType.SYMBOL, IonType.STRING])
+_IN_TYPES = {IonType.SYMBOL, IonType.STRING}
 _OUT_TYPES = set(IonType._enum_members.values()) - _IN_TYPES
 
 
@@ -44,7 +44,7 @@ def test_is_text(p):
     assert p.expected == p.type.is_text
 
 
-_IN_TYPES = set([IonType.CLOB, IonType.BLOB])
+_IN_TYPES = {IonType.CLOB, IonType.BLOB}
 _OUT_TYPES = set(IonType._enum_members.values()) - _IN_TYPES
 
 
@@ -53,7 +53,7 @@ def test_is_lob(p):
     assert p.expected == p.type.is_lob
 
 
-_IN_TYPES = set([IonType.LIST, IonType.SEXP, IonType.STRUCT])
+_IN_TYPES = {IonType.LIST, IonType.SEXP, IonType.STRUCT}
 _OUT_TYPES = set(IonType._enum_members.values()) - _IN_TYPES
 
 

@@ -30,7 +30,7 @@ def _create_multimap_with_items(pairs):
 def test_add_item(p):
     m = _create_multimap_with_items(p.pairs)
     for expected in p.expected_all_values:
-        assert list([x for x in m.get_all_values(expected[0])]) == expected[1]
+        assert list(list(m.get_all_values(expected[0]))) == expected[1]
     for expected in p.expected_single_value:
         assert m[expected[0]] == expected[1]
     assert p.expected_total_len == len(m)

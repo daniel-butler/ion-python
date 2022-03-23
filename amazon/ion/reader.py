@@ -94,7 +94,7 @@ class CodePointArray:
         return len(self.__text)
 
     def __repr__(self):
-        return 'CodePointArray(text=%s)' % (self.__text,)
+        return f'CodePointArray(text={self.__text})'
 
     __str__ = __repr__
 
@@ -171,10 +171,7 @@ class BufferQueue(object):
 
             if segment_off == 0 and segment_read_len == segment_rem:
                 # consume an entire segment
-                if skip:
-                    segment_slice = self.__element_type()
-                else:
-                    segment_slice = segment
+                segment_slice = self.__element_type() if skip else segment
             else:
                 # Consume a part of the segment.
                 if skip:
@@ -193,10 +190,7 @@ class BufferQueue(object):
                 return segment_slice
             data.extend(segment_slice)
             length -= segment_read_len
-        if self.is_unicode:
-            return data.as_text()
-        else:
-            return data
+        return data.as_text() if self.is_unicode else data
 
     def read_byte(self):
         if self.__size < 1:
@@ -249,7 +243,7 @@ class BufferQueue(object):
             def verify(ch, idx):
                 existing = self.__segments[0][self.__offset + idx]
                 if existing != ch:
-                    raise ValueError('Attempted to unread %s when %s was expected.' % (ch, existing))
+                    raise ValueError(f'Attempted to unread {ch} when {existing} was expected.')
             if num_code_units == 1:
                 verify(c, 0)
             else:
@@ -354,13 +348,14 @@ def reader_trampoline(start, allow_flush=False):
             # Only yield if there is an event.
             data_event = (yield trans.event)
             if trans.event.event_type.is_stream_signal:
-                if data_event.type is not ReadEventType.DATA:
-                    if not allow_flush or not (trans.event.event_type is IonEventType.INCOMPLETE and
-                                               data_event.type is ReadEventType.NEXT):
-                        raise TypeError('Reader expected data: %r' % (data_event,))
-            else:
-                if data_event.type is ReadEventType.DATA:
-                    raise TypeError('Reader did not expect data')
+                if data_event.type is not ReadEventType.DATA and (
+                    not allow_flush
+                    or trans.event.event_type is not IonEventType.INCOMPLETE
+                    or data_event.type is not ReadEventType.NEXT
+                ):
+                    raise TypeError('Reader expected data: %r' % (data_event,))
+            elif data_event.type is ReadEventType.DATA:
+                raise TypeError('Reader did not expect data')
             if data_event.type is ReadEventType.DATA and len(data_event.data) == 0:
                 raise ValueError('Empty data not allowed')
             if trans.event.depth == 0 \

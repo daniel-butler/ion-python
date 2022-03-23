@@ -52,11 +52,10 @@ _IVM_PAIRS =[
 @listify
 def _prepend_ivm(params):
     for p in params:
-        new_p = _P(
+        yield _P(
             desc=p.desc,
             event_pairs=_IVM_PAIRS + p.event_pairs
         )
-        yield new_p
 
 _BASIC_PARAMS = (
     _P(
@@ -275,10 +274,9 @@ def _gen_type_len(tid, length):
     type_code = tid << 4
     if length < 0xE:
         return int2byte(type_code | length)
-    else:
-        type_code |= 0xE
-        if length <= 0x7F:
-            return int2byte(type_code) + int2byte(0x80 | length)
+    type_code |= 0xE
+    if length <= 0x7F:
+        return int2byte(type_code) + int2byte(0x80 | length)
 
     raise ValueError('No support for long lengths in reader test')
 
@@ -326,11 +324,11 @@ def _annotate_params(params):
 
 
 def _data_event_len(event_pairs):
-    length = 0
-    for read_event, _ in event_pairs:
-        if read_event.type is ReadEventType.DATA:
-            length += len(read_event.data)
-    return length
+    return sum(
+        len(read_event.data)
+        for read_event, _ in event_pairs
+        if read_event.type is ReadEventType.DATA
+    )
 
 
 def _containerize_params(params, with_skip=True):

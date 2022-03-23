@@ -84,7 +84,7 @@ def test_float():
     if is_pypy:
         return
 
-    ion_value = loads(dumps(float(123.456)))
+    ion_value = loads(dumps(123.456))
     assert isinstance(ion_value, IonPyFloat) and ion_value.ion_type == IonType.FLOAT
     json_string = json.dumps(ion_value, cls=IonToJSONEncoder)
     assert json_string == '123.456'
@@ -246,7 +246,7 @@ def test_struct():
     assert isinstance(ion_value, IonPyDict) and ion_value.ion_type == IonType.STRUCT
     json_string = json.dumps(ion_value, cls=IonToJSONEncoder)
     expected_string = '{"string_value": "Ion", "int_value": 123, "nested_struct": {"nested_value": "Nested Ion"}}'
-    if not json_string == expected_string:
+    if json_string != expected_string:
         # Assert as objects to handle different Python versions' JSON string key ordering
         assert json.loads(json_string) == json.loads(expected_string)
 

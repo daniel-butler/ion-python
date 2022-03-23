@@ -170,14 +170,11 @@ def test_shared_symbols(p):
     assert p.is_substitute == p.table.is_substitute
 
     text_iter = iter(p.symbol_texts)
-    curr_sid = 1
-    for token in p.table:
+    for curr_sid, token in enumerate(p.table, start=1):
         text = next(text_iter)
         assert text == token.text
         assert curr_sid == token.sid
         assert symbols.ImportLocation(p.name, curr_sid) == token.location
-        curr_sid += 1
-
     assert None == p.table.get(u'z')
     with pytest.raises(KeyError):
         p.table[u'z']
@@ -186,8 +183,7 @@ def test_shared_symbols(p):
         p.table[1024]
 
     seen = set()
-    curr_id = 1
-    for text in p.symbol_texts:
+    for curr_id, text in enumerate(p.symbol_texts, start=1):
         token = p.table[curr_id]
         assert text == token.text
         if text is not None:
@@ -198,8 +194,6 @@ def test_shared_symbols(p):
                 mapped_token = p.table[text]
                 assert token != mapped_token
                 assert token.sid > mapped_token.sid
-        curr_id += 1
-
     assert symbols.SYMBOL_ZERO_TOKEN == p.table[0]
 
 

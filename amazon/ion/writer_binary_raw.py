@@ -105,10 +105,7 @@ _BOOL_FALSE = bytearray([_TypeIds.BOOL_FALSE])
 
 
 def _serialize_bool(ion_event):
-    if ion_event.value:
-        return _BOOL_TRUE
-    else:
-        return _BOOL_FALSE
+    return _BOOL_TRUE if ion_event.value else _BOOL_FALSE
 
 
 def _write_length(buf, length, tid):
@@ -173,11 +170,11 @@ def _write_decimal_value(buf, exponent, coefficient, sign=0):
 def _write_timestamp_fractional_seconds(buf, value):
     sign, digits, exponent = value.as_tuple()
     coefficient = int(value.scaleb(-exponent).to_integral_value())
-    if coefficient == 0 and exponent >= 0:
-        length = 0
-    else:
-        length = _write_decimal_value(buf, exponent, coefficient, sign)
-    return length
+    return (
+        0
+        if coefficient == 0 and exponent >= 0
+        else _write_decimal_value(buf, exponent, coefficient, sign)
+    )
 
 
 def _serialize_decimal(ion_event):
@@ -299,9 +296,11 @@ _serialize_scalar = partial(
 def _serialize_annotation_wrapper(output_buf, annotations):
     value_length = output_buf.current_container_length
     annot_length_buf = bytearray()
-    annot_length = 0
-    for annotation in annotations:
-        annot_length += _write_varuint(annot_length_buf, annotation.sid)
+    annot_length = sum(
+        _write_varuint(annot_length_buf, annotation.sid)
+        for annotation in annotations
+    )
+
     header = bytearray()
     length_buf = bytearray()
     length = _write_varuint(length_buf, annot_length) + annot_length + value_length
@@ -323,9 +322,7 @@ def _serialize_container(output_buf, ion_event):
             header.append(_TypeIds.STRUCT | _LENGTH_FIELD_INDICATOR)
             _write_varuint(header, length)
     else:
-        tid = _TypeIds.LIST
-        if ion_type is IonType.SEXP:
-            tid = _TypeIds.SEXP
+        tid = _TypeIds.SEXP if ion_type is IonType.SEXP else _TypeIds.LIST
         _write_length(header, length, tid)
     output_buf.end_container(header)
 
